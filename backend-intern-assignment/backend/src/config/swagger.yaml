@@ -1,0 +1,73 @@
+openapi: 3.0.0
+info:
+  title: Backend Intern Assignment API
+  version: 1.0.0
+  description: REST API with JWT Authentication and Role-Based Access
+
+servers:
+  - url: http://localhost:5000
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/v1/auth/register:
+    post:
+      summary: Register user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "201":
+          description: User registered
+
+  /api/v1/auth/login:
+    post:
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Login success
+
+  /api/v1/tasks:
+    get:
+      summary: Get tasks
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List tasks
+    post:
+      summary: Create task
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Task created

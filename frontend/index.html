@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Task Manager - Full CRUD</title>
+
+  <style>
+    /* ====== Custom Human-style CSS ====== */
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+      min-height: 100vh;
+      margin: 0;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h2 {
+      margin-bottom: 15px;
+      color: #2c3e50;
+    }
+
+    .card {
+      background: #ffffff;
+      padding: 30px;
+      width: 100%;
+      max-width: 450px; /* Slightly wider for buttons */
+      border-radius: 12px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+      margin-bottom: 25px;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+      box-sizing: border-box; /* Fixes padding issues */
+    }
+
+    /* General Button Style */
+    button {
+      background: #34495e;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+      margin-right: 5px;
+    }
+
+    button:hover {
+      background: #2c3e50;
+      transform: translateY(-1px);
+    }
+
+    /* Action Buttons (Edit, Delete) */
+    .btn-delete { background: #e74c3c; padding: 5px 10px; font-size: 12px; }
+    .btn-delete:hover { background: #c0392b; }
+
+    .btn-edit { background: #f39c12; padding: 5px 10px; font-size: 12px; }
+    .btn-edit:hover { background: #d35400; }
+
+    .btn-status { background: #27ae60; padding: 5px 10px; font-size: 12px; }
+    .btn-status:hover { background: #219150; }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin-top: 15px;
+    }
+
+    li {
+      background: #f4f6f8;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      border-left: 4px solid #34495e;
+    }
+
+    .task-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      width: 100%;
+    }
+
+    .task-actions {
+      display: flex;
+      justify-content: flex-end;
+      width: 100%;
+      margin-top: 5px;
+    }
+
+    .status-badge {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 12px;
+      background: #95a5a6;
+      color: white;
+      text-transform: uppercase;
+    }
+
+    .status-badge.completed { background: #27ae60; }
+    .status-badge.pending { background: #e67e22; }
+
+    .muted {
+      font-size: 12px;
+      color: #777;
+      margin-top: 5px;
+      text-align: center;
+    }
+
+    /* Hidden elements */
+    .hidden { display: none; }
+  </style>
+</head>
+
+<body>
+
+  <div class="card">
+    <h2>Register User</h2>
+    <input type="email" id="reg-email" placeholder="New Email" />
+    <input type="password" id="reg-password" placeholder="New Password" />
+    <button onclick="register()">Register</button>
+    <div class="muted" id="regMsg"></div>
+  </div>
+
+  <div class="card">
+    <h2>Login</h2>
+    <input type="email" id="email" placeholder="Email" />
+    <input type="password" id="password" placeholder="Password" />
+    <button onclick="login()">Login</button>
+    <div class="muted" id="loginMsg"></div>
+  </div>
+
+  <div class="card" id="taskFormCard">
+    <h2 id="formTitle">Create Task</h2>
+    <input type="hidden" id="editTaskId" /> <input type="text" id="title" placeholder="Task title" />
+    <input type="text" id="description" placeholder="Task description" />
+    
+    <button id="btnCreate" onclick="createTask()">Create Task</button>
+    <button id="btnUpdate" onclick="updateTaskAPI()" class="hidden" style="background:#f39c12;">Update Task</button>
+    <button id="btnCancel" onclick="cancelEdit()" class="hidden" style="background:#95a5a6;">Cancel</button>
+  </div>
+
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h2>Your Tasks</h2>
+      <button onclick="getTasks()" style="padding: 5px 10px; font-size:12px;">Refresh</button>
+    </div>
+    <ul id="taskList"></ul>
+  </div>
+
+  <script>
+    let token = localStorage.getItem("token") || ""; // Persist token on refresh
+    const API_URL = "http://localhost:5000/api/v1";
+
+    // --- 1. AUTHENTICATION ---
+
+    async function register() {
+      const email = document.getElementById("reg-email").value;
+      const password = document.getElementById("reg-password").value;
+
+      try {
+        const res = await fetch(`${API_URL}/auth/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+        
+        if (res.ok) {
+          document.getElementById("regMsg").innerText = "Registration successful! Please login.";
+          document.getElementById("regMsg").style.color = "green";
+        } else {
+          document.getElementById("regMsg").innerText = "Registration failed.";
+          document.getElementById("regMsg").style.color = "red";
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function login() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      try {
+        const res = await fetch(`${API_URL}/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await res.json();
+        
+        if (res.ok) {
+          token = data.token;
+          localStorage.setItem("token", token); // Save token
+          document.getElementById("loginMsg").innerText = "Login successful";
+          document.getElementById("loginMsg").style.color = "green";
+          getTasks(); // Auto fetch tasks
+        } else {
+          document.getElementById("loginMsg").innerText = "Login failed";
+          document.getElementById("loginMsg").style.color = "red";
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // --- 2. CREATE TASK ---
+
+    async function createTask() {
+      if (!token) return alert("Please login first");
+
+      const title = document.getElementById("title").value;
+      const desc = document.getElementById("description").value;
+
+      await fetch(`${API_URL}/tasks`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + token
+        },
+        body: JSON.stringify({ title, description: desc })
+      });
+
+      clearForm();
+      getTasks();
+    }
+
+    // --- 3. GET TASKS ---
+
+    async function getTasks() {
+      if (!token) return;
+
+      const res = await fetch(`${API_URL}/tasks`, {
+        headers: { "Authorization": "Bearer " + token }
+      });
+      const tasks = await res.json();
+
+      // Render Tasks with buttons
+      document.getElementById("taskList").innerHTML = tasks.map(t => `
+        <li>
+          <div class="task-header">
+            <div>
+              <strong>${t.title}</strong><br>
+              <small>${t.description || ""}</small>
+            </div>
+            <span class="status-badge ${t.status === 'completed' ? 'completed' : 'pending'}">
+              ${t.status}
+            </span>
+          </div>
+          
+          <div class="task-actions">
+            <button class="btn-status" onclick="toggleStatus('${t._id}', '${t.status}')">
+              ${t.status === 'pending' ? '✓ Complete' : '↺ Reopen'}
+            </button>
+            
+            <button class="btn-edit" onclick="startEdit('${t._id}', '${t.title}', '${t.description}')">
+              Edit
+            </button>
+            
+            <button class="btn-delete" onclick="deleteTask('${t._id}')">
+              Delete
+            </button>
+          </div>
+        </li>
+      `).join("");
+    }
+
+    // --- 4. DELETE TASK ---
+
+    async function deleteTask(id) {
+      if (!confirm("Are you sure you want to delete this task?")) return;
+
+      await fetch(`${API_URL}/tasks/${id}`, {
+        method: "DELETE",
+        headers: { "Authorization": "Bearer " + token }
+      });
+      getTasks();
+    }
+
+    // --- 5. UPDATE TASK (EDIT & STATUS) ---
+
+    // A. Toggle Status (PUT)
+    async function toggleStatus(id, currentStatus) {
+      const newStatus = currentStatus === "pending" ? "completed" : "pending";
+      
+      await fetch(`${API_URL}/tasks/${id}`, {
+        method: "PUT", // Or PATCH depending on your backend
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + token
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+      getTasks();
+    }
+
+    // B. Start Editing (UI Change)
+    function startEdit(id, title, desc) {
+      document.getElementById("formTitle").innerText = "Edit Task";
+      document.getElementById("editTaskId").value = id;
+      document.getElementById("title").value = title;
+      document.getElementById("description").value = desc;
+
+      // Show Update/Cancel, Hide Create
+      document.getElementById("btnCreate").classList.add("hidden");
+      document.getElementById("btnUpdate").classList.remove("hidden");
+      document.getElementById("btnCancel").classList.remove("hidden");
+      
+      // Scroll to top
+      window.scrollTo(0, 0);
+    }
+
+    // C. Cancel Editing
+    function cancelEdit() {
+      clearForm();
+      document.getElementById("formTitle").innerText = "Create Task";
+      document.getElementById("btnCreate").classList.remove("hidden");
+      document.getElementById("btnUpdate").classList.add("hidden");
+      document.getElementById("btnCancel").classList.add("hidden");
+    }
+
+    function clearForm() {
+      document.getElementById("title").value = "";
+      document.getElementById("description").value = "";
+      document.getElementById("editTaskId").value = "";
+    }
+
+    // D. Submit Update (API Call)
+    async function updateTaskAPI() {
+      const id = document.getElementById("editTaskId").value;
+      const title = document.getElementById("title").value;
+      const desc = document.getElementById("description").value;
+
+      await fetch(`${API_URL}/tasks/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + token
+        },
+        body: JSON.stringify({ title, description: desc })
+      });
+
+      cancelEdit(); // Reset form
+      getTasks();   // Refresh list
+    }
+
+  </script>
+</body>
+</html>
