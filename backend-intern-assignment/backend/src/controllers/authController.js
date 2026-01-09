@@ -49,6 +49,9 @@ exports.loginUser = async (req, res) => {
       token: generateToken(user)
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
-  }
+  // 👇 ADD THIS LINE and look at your VS Code Terminal
+  console.log("THE ERROR IS HERE:", error.message); 
+  
+  res.status(500).json({ message: "Server error", error: error.message });
+}
 };
